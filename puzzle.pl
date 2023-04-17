@@ -9,6 +9,7 @@ set_prolog_flag(answer_write_options,
 */
 :- ensure_loaded(library(clpfd)).
 :- use_module(library(pairs)).
+:- use_module(library(lists)).
 %-------------------------------------------------------------------------------
 % Relevant facts
 %-------------------------------------------------------------------------------
@@ -103,11 +104,26 @@ test(1) :-
                 [0,8,2,2,5],[1,2,0,1,9],[1,4,3,6,3],[1,7,2,5,2],[1,8,1,1,0],[2,1,0,0,1],[2,3,3,8,2],[2,7,5,1,3],[3,3,2,5,6],[4,4,2,1,7],[4,4,2,9,2],[4,8,1,3,4],[4,8,1,9,5],
                 [5,2,0,1,9],[5,2,4,5,4],[0,0,7,0,8,3],[1,9,6,1,1,5],[4,5,0,1,1,5],[5,2,8,9,5,8],[6,3,1,1,5,4],[7,0,7,2,2,1],[9,6,5,6,9,6],[9,8,4,5,6,6],
                 [9,1,4,6,3,8,5],[9,1,8,1,7,9,8]],
-    time(puzzle_solution(Res1, WordList)),
-    ground(Res1),
-    write_puzzle(Res1).
+    time(puzzle_solution(Puzzle, WordList)),
+    Puzzle = Res1,
+    write_puzzle(Puzzle).
 
 test(2) :-
+    Res = [ [c,y,s,t,#,e,r,r,o,l,#,s,e,w,n],
+            [o,a,t,h,#,s,h,a,d,e,#,t,r,i,o],
+            [s,l,a,y,#,k,o,r,e,a,#,r,o,l,l],
+            [y,e,n,#,f,i,d,e,#,c,h,i,s,e,l],
+            [#,#,d,r,a,m,a,#,c,h,a,d,#,#,#],
+            [c,a,p,u,t,o,#,c,o,a,l,e,s,c,e],
+            [a,g,o,n,e,#,c,h,u,t,e,#,c,a,l],
+            [b,a,i,t,#,o,h,a,r,e,#,c,u,r,d],
+            [l,i,n,#,k,r,a,f,t,#,c,a,l,v,e],
+            [e,n,t,e,n,d,r,e,#,p,a,m,p,e,r],
+            [#,#,#,v,o,i,d,#,c,o,v,e,t,#,#],
+            [s,t,r,e,w,n,#,w,a,n,e,#,u,g,h],
+            [p,a,u,l,#,a,w,a,r,d,#,f,r,y,e],
+            [i,n,d,y,#,t,a,s,t,e,#,p,a,r,e],
+            [t,h,e,n,#,e,s,t,e,r,#,c,l,o,d]],
     Puzzle =   [[_,_,_,_,#,_,_,_,_,_,#,_,_,_,_],
                 [_,_,_,_,#,_,_,_,_,_,#,_,_,_,_],
                 [_,_,_,_,#,_,_,_,_,_,#,_,_,_,_],
@@ -256,17 +272,55 @@ test(99):-
     write_puzzle(Puzzle).
 %-------------------------------------------------------------------------------
 % Main predicate
+% WordGroup groups of Words with same length, for a slot to calculate possible Words
+% LeftSlots left slots, calculate number of possible Words every time
 %-------------------------------------------------------------------------------
-puzzle_solution(Puzzle, WordList) :-
+puzzle_solution(Puzzle, Words) :-
     transpose(Puzzle, Puzzle_transpose),
     get_slots_in_puzzle(Puzzle, [], S1),
     get_slots_in_puzzle(Puzzle_transpose, [], S2),
     append(S1, S2, Slots),
-    group_slot(Slots, SlotGroups),
-    sort_by_occurence(WordList, SortedWordList),
-    %!,
-    solve(SlotGroups, SortedWordList).
+    group_word(Words, Word_Length_Groups),
+    minimal_solve(Slots, Word_Length_Groups),
+    ground(Puzzle).
 
+minimal_solve([], _).
+minimal_solve(Slots_Left, Word_Length_Groups) :-
+    %maplist(possible,[[_, _, _], [h, _, _]], [3-[[h, a, t], [b, a, g]]], NP).
+    %curry since Word_Length_Groups dont change here
+    %Word_Length_Groups_Repeated = (Word_Length_Groups),
+    maplist(possible(Word_Length_Groups), Slots_Left, NPs),
+    min_list(NPs, NP_Min),
+    nth0(Nth, NPs, NP_Min),
+    !,%choose any one NP_Min is sufficient
+    nth0(Nth, Slots_Left, Slot, Slots_Left_Prime),
+    length(Slot, L),
+    member(L-Group, Word_Length_Groups),
+    match_slot_to_word_group(Slot, Group),
+    select(Slot, Group, Group_Prime),
+    select(L-Group, Word_Length_Groups, L-Group_Prime, Word_Length_Groups_Prime),
+    minimal_solve(Slots_Left_Prime, Word_Length_Groups_Prime).
+%-------------------------------------------------------------------------------
+% Solve the puzzle
+%-------------------------------------------------------------------------------
+% + + -
+possible(Word_Length_Groups, Slot, NP) :-
+    length(Slot, NL),
+    member(NL-Group, Word_Length_Groups),
+    possible_fills(Slot, Group, [], Word_Matches),
+    length(Word_Matches, NP).
+
+possible_fills(_, [], Acc, Acc).
+possible_fills(Slot, [X|Y], Acc, Matches) :-
+    Slot \= X ->
+        possible_fills(Slot, Y, Acc, Matches)
+        ;
+        possible_fills(Slot, Y, [X|Acc], Matches)
+        .
+match_slot_to_word_group(Slot, [Word|R]) :-
+    Slot = Word;
+    match_slot_to_word_group(Slot, R).
+/*
 solve(_, []).
 solve(SlotGroups, [Word|R]) :-
     %length(R, RN),
@@ -278,9 +332,67 @@ solve(SlotGroups, [Word|R]) :-
 match_group([Slot|R], Word) :-
     Slot = Word;
     match_group(R, Word).
+*/
+%-------------------------------------------------------------------------------
+% Sorting words
+%-------------------------------------------------------------------------------
+
+% sort_by_occurence([[h,a,t], [4], [a,a], [b,a,g], [a], [b], [c]], Sorted).
+sort_by_occurence(WordList, Sorted) :-
+    group_word(WordList, SortedGroups),
+    group_to_list(SortedGroups, Sorted).
+
+% not used
+group_slot(SlotList, Groups) :-
+    map_list_to_pairs(length, SlotList, Pairs),
+    keysort(Pairs, SortedPairs),
+    group_pairs_by_key(SortedPairs, Groups).
+
+
+%-------------------------------------------------------------------------------
+% pre-processing of Puzzle and Words
+%-------------------------------------------------------------------------------
+
+% Group Word in Wordlist and make list of groups, ordered in occurence.
+% + -
+% group_word( [[h,a,t], [a,a], [b,a,g], [a], [b], [c]], X).
+% X = [[[a, a]], [[h, a, t], [b, a, g]], [[a], [b], [c]]].
+group_word(Words, Groups) :-
+    map_list_to_pairs(length, Words, Pairs),
+    keysort(Pairs, SortedPairs),
+    group_pairs_by_key(SortedPairs, Groups).
+
+
+/*
+group_word(WordList, GroupList) :-
+    map_list_to_pairs(length, WordList, Pairs),
+    keysort(Pairs, SortedPairs),
+    group_pairs_by_key(SortedPairs, Groups),
+    maplist(key_group_to_occurence_group, Groups, GroupsOccurence),
+    keysort(GroupsOccurence, SortedGroups),
+    pairs_values(SortedGroups, GroupList).
+*/
+
+% + -
+key_group_to_occurence_group(Pair0, Pair1) :-
+    Pair0 = _-V0,
+    length(V0, N),
+    Pair1 = N-V0.
+
+% Put groups in one list
+% + -
+group_to_list([], []).
+group_to_list([Lx|Lxs], List) :-
+    append(Lx, Rest, List),
+    group_to_list(Lxs, Rest).
+
+
+
+
+
+
 
 get_slots_in_puzzle([], Acc, Acc).
-
 get_slots_in_puzzle([X|Y], Acc, SlotList) :-
     get_slots_in_row(X, [], L),
     append(Acc, L, Acc1),
@@ -308,7 +420,7 @@ get_slots_in_row(Row, Accu, SlotList) :-
         get_slots_in_row(R, Accu, SlotList)
     )
     .
-
+%supporting partially prefilled Puzzle
 first_nonvar([], Acc, Acc).
 first_nonvar([X|Y], Acc, Index) :-
     var_or_filled(X) ->
@@ -322,44 +434,3 @@ var_or_filled(X) :-
         true
         ;
         X \= '#' .
-%-------------------------------------------------------------------------------
-% Solve the puzzle
-%-------------------------------------------------------------------------------
-
-
-
-%-------------------------------------------------------------------------------
-% Sorting words
-%-------------------------------------------------------------------------------
-
-% sort_by_occurence([[h,a,t], [4], [a,a], [b,a,g], [a], [b], [c]], Sorted).
-sort_by_occurence(WordList, Sorted) :-
-    group_word(WordList, SortedGroups),
-    group_to_list(SortedGroups, Sorted).
-% Group Word in Wordlist and make list of groups, ordered in occurence.
-% + -
-% group_word( [[h,a,t], [a,a], [b,a,g], [a], [b], [c]], X).
-% X = [[[a, a]], [[h, a, t], [b, a, g]], [[a], [b], [c]]].
-group_word(WordList, GroupList) :-
-    map_list_to_pairs(length, WordList, Pairs),
-    keysort(Pairs, SortedPairs),
-    group_pairs_by_key(SortedPairs, Groups),
-    maplist(key_to_occurence, Groups, GroupsOccurence),
-    keysort(GroupsOccurence, SortedGroups),
-    pairs_values(SortedGroups, GroupList).
-
-group_slot(SlotList, Groups) :-
-    map_list_to_pairs(length, SlotList, Pairs),
-    keysort(Pairs, SortedPairs),
-    group_pairs_by_key(SortedPairs, Groups).
-% + -
-key_to_occurence(Pair0, Pair1) :-
-    Pair0 = _-V0,
-    length(V0, N),
-    Pair1 = N-V0.
-% Put sorted groups in one list
-% + -
-group_to_list([], []).
-group_to_list([Lx|Lxs], List) :-
-    append(Lx, Rest, List),
-    group_to_list(Lxs, Rest).
