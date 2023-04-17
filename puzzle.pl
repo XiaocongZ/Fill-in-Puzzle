@@ -66,6 +66,21 @@ test(0) :-
     write_puzzle(Puzzle).
 
 test(1) :-
+    Res1 = [   [#,2,2,5,#,9,4,4,1,#,#,0,9,0,8],
+                [3,7,3,7,#,6,5,4,1,#,5,2,4,5,4],
+    [6, 5,3, 5, #, 5, 0,2,1, #, 2, 1,0,0,1],
+    [3, 1, 8, #, #, 8,1, 9, #, 9, 8,4, 5,6,6],
+    [3,3,2,5,6,#,1,2,0,1,9,#,#,#,#],
+    [#,#,#,9,7,9,5,#,8,8,5,#, 3,3,7],
+    [7, 0, 7, 2, 2, 1, #, 7, 1, 1, 8, #, 2, 5, 6],
+    [2, 3, 5,8, #, 4, 4, 2,1, 7, #, 3, 2,5,2],
+    [5, 2, 8, #, 6,6, 5, 3, #, 9,6,5,6,9,6],
+    [5, 7, 4, #, 3, 3,0, #, 0,8,4, 8,#,#,#],
+    [#,#,#,#,1,8,1,1,0, #, 5,2, 0,1,9],
+    [1, 9, 6, 1,1,5, #, 7,7, 7, #, #, 8, 4,4],
+    [4, 8, 1,9,5, #, 0, 2,0,2, #, 1,2,3,5],
+    [4, 8, 1, 3, 4, #, 5, 5, 8, 8, #, 6, 2, 6, 2],
+    [0, 7, 0,2, #,#, 1, 2,3, 4, #, 5, 5,3,#]],
     Puzzle =   [[#,_,_,_,#,_,_,_,_,#,#,_,_,_,_],
                 [_,_,_,_,#,_,_,_,_,#,_,_,_,_,_],
                 [_,_,_,_,#,_,_,_,_,#,_,_,_,_,_],
@@ -88,9 +103,9 @@ test(1) :-
                 [0,8,2,2,5],[1,2,0,1,9],[1,4,3,6,3],[1,7,2,5,2],[1,8,1,1,0],[2,1,0,0,1],[2,3,3,8,2],[2,7,5,1,3],[3,3,2,5,6],[4,4,2,1,7],[4,4,2,9,2],[4,8,1,3,4],[4,8,1,9,5],
                 [5,2,0,1,9],[5,2,4,5,4],[0,0,7,0,8,3],[1,9,6,1,1,5],[4,5,0,1,1,5],[5,2,8,9,5,8],[6,3,1,1,5,4],[7,0,7,2,2,1],[9,6,5,6,9,6],[9,8,4,5,6,6],
                 [9,1,4,6,3,8,5],[9,1,8,1,7,9,8]],
-    time(puzzle_solution(Puzzle, WordList)),
-    ground(Puzzle),
-    write_puzzle(Puzzle).
+    time(puzzle_solution(Res1, WordList)),
+    ground(Res1),
+    write_puzzle(Res1).
 
 test(2) :-
     Puzzle =   [[_,_,_,_,#,_,_,_,_,_,#,_,_,_,_],
@@ -243,19 +258,19 @@ test(99):-
 % Main predicate
 %-------------------------------------------------------------------------------
 puzzle_solution(Puzzle, WordList) :-
-    %size(Puzzle, Row, Column),
     transpose(Puzzle, Puzzle_transpose),
     get_slots_in_puzzle(Puzzle, [], S1),
     get_slots_in_puzzle(Puzzle_transpose, [], S2),
     append(S1, S2, Slots),
     group_slot(Slots, SlotGroups),
     sort_by_occurence(WordList, SortedWordList),
-    !,
-    length(Slots, Ns),
+    %!,
     solve(SlotGroups, SortedWordList).
 
 solve(_, []).
 solve(SlotGroups, [Word|R]) :-
+    %length(R, RN),
+    %write("solve "), write(RN), write(Word), nl,
     length(Word, N),
     member(N-Group, SlotGroups),
     match_group(Group, Word),
@@ -268,12 +283,13 @@ get_slots_in_puzzle([], Acc, Acc).
 
 get_slots_in_puzzle([X|Y], Acc, SlotList) :-
     get_slots_in_row(X, [], L),
-    append(L, Acc, Acc1),
+    append(Acc, L, Acc1),
     get_slots_in_puzzle(Y, Acc1, SlotList).
 
 get_slots_in_row([], Acc, Acc).
 get_slots_in_row([_], Acc, Acc).
 get_slots_in_row(Row, Accu, SlotList) :-
+    length(Row, Nr), Nr > 1,
     nth0(0, Row, Digit0, R),
     (%a serious bug.
     var_or_filled(Digit0) ->
