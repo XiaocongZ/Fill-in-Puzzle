@@ -1,30 +1,30 @@
 % Auther: Xiaocong Zhang
+% ID: 1292460
 % Email: xiaocongz@student.unimelb.edu.au
+
+% Purpose: Solve fill-in puzzle with simple strategy minimizing search
+
 /*
-set_prolog_flag(answer_write_options,
-                   [ quoted(true),
-                     portray(true),
-                     spacing(next_argument)
-                   ]).
+A fill-in puzzle is a rectangular grid with fillable and unfillable squares. It can be partially pre-filled.
+We provide a solver fro such puzzles, given that the puzzles are proper(has at most one solution).
+The solver extracts fillable slots and words from input, try to fill slots one by one, while alway choosing the slot currently with minimal possible matches.
+So we will return all possible solutions, and false when there are none.
+We also provide test/1 predicate for testing, thanks to "https://edstem.org/au/courses/11041/discussion/1262344" for sharing test cases.
 */
 :- ensure_loaded(library(clpfd)).
 :- use_module(library(pairs)).
 :- use_module(library(lists)).
-%-------------------------------------------------------------------------------
-% Relevant facts
-%-------------------------------------------------------------------------------
-/*
-WordList is a list of list of length > 1.
-Puzzle is a rectangular, not necessarily a square.
-*/
+
 %-------------------------------------------------------------------------------
 % Test cases
 %-------------------------------------------------------------------------------
+% helper predicate to print puzzle
 write_puzzle([]).
-write_puzzle([X|Y]) :-
-    writeq(X),
+write_puzzle([Row|Rest]) :-
+    writeq(Row),
     nl,
-    write_puzzle(Y).
+    write_puzzle(Rest).
+
 test(original) :-
     WordList = [[g, i], [i, o], [o, n], [o, r],
                 [d, a, g], [e, v, o], [o, e, d], [r, e, f],
@@ -39,7 +39,6 @@ test(original) :-
                 [#, _, _, _, _, #, #],
                 [#, #, _, _, _, #, #]],
     time(puzzle_solution(Puzzle, WordList)),
-    ground(Puzzle),
     write_puzzle(Puzzle).
 test(rect) :-
     WordList = [[g, i], [i, o], [o, n], [o, r],
@@ -56,14 +55,12 @@ test(rect) :-
                 [#, #, _, _, _, #, #],
                 [#, #, #, #, #, #, #]],
     time(puzzle_solution(Puzzle, WordList)),
-    ground(Puzzle),
     write_puzzle(Puzzle).
 
 test(0) :-
     Puzzle = [['#',h,'#'],[_,_,_],['#',_,'#']],
     WordList = [[h,a,t], [b,a,g]],
     puzzle_solution(Puzzle, WordList),
-    ground(Puzzle),
     write_puzzle(Puzzle).
 
 test(1) :-
@@ -148,7 +145,6 @@ test(2) :-
                 [c,a,p,u,t,o],[c,h,i,s,e,l],[e,s,k,i,m,o],[e,v,e,l,y,n],[p,a,m,p,e,r],[p,o,n,d,e,r],[s,t,r,e,w,n],[s,t,r,i,d,e],
                 [c,o,a,l,e,s,c,e],[e,n,t,e,n,d,r,e],[l,e,a,c,h,a,t,e],[o,r,d,i,n,a,t,e],[s,c,u,l,p,t,u,r,a,l],[s,t,a,n,d,p,o,i,n,t]],
     time(puzzle_solution(Puzzle, WordList)),
-    ground(Puzzle),
     write_puzzle(Puzzle).
 
 test(small) :-
@@ -164,7 +160,6 @@ test(small) :-
     WordList = [[c,a,r],[b,a,t],[r,e,d,e],[e,b,e],[b,e,d],[a,d,a,d,a,d],[a,t],[b,a,d,d,y],[d,d,a,d,n,e],[t,o],[t,w,i,n,y],[t,t],[o,w],[i,k,i],
                [k,o],[n,o,v],[r,u,n],[u,n,i,v,e,r,s,e],[r,r],[u,s],[t,e,d],[a,b,c],[b,d],[d,b,c,a]],
     time(puzzle_solution(Puzzle, WordList)),
-    ground(Puzzle),
     write_puzzle(Puzzle).
 test(large) :-
     WordList = [[o, j, z, d, h, s, w], [m, t, g, e, j, n, v], [d, q, e, v, x, k, j, m, m, q, q, g, t], [x, n], [j, v], [g, e, x, x, b, a, c, v, s, b, f, q, q, s, d, d, f, g, u, p, h, x], [m, s, g, e], [e, k, m, n], [v, y, i, l, t, w, j], [c, j], [u, c, s, a, j], [n, q], [t, w, q, d], [o, g, c, l, v, b, y, m, z], [v, e], [v, z, j, w, g, u, q], [g, w, h, e, p], [d, j], [d, b, c, f], [o, h, g, x, v], [s, z], [b, u, y, g, f, a], [i, v, k], [f, m, z, p, g, a, q, b, b, e, m, w, g, c, w, s, l, d, g, e, p, w], [c, p, m, v, b, x], [c, u, z, o, c, h, d, g, m, b, f, w, b, f], [l, n, f, u, o, o, i, j, m, n, s, x], [g, g, d], [f, f, b, x, a, b, r, z, h, q, p, h, w], [g, n, g], [x, x], [p, b, n, a, l, p, t, f], [t, t, o, k, k, k, q, q, e, z, v, s], [p, a, t, t, o], [g, h, u, l, e], [d, t, q], [i, v, j, x, p, t, s, k, h], [m, q, f, i], [k, a, e, t, f, j, u, f, y, o, m], [d, k, k, g, s], [x, p, a, p, s, e, l], [n, c, q], [q, x, h, i, k, q], [n, f, a, f], [q, a, j, n, q, s, d], [e, z], [z, n, g, g, a, y, b, i, i, r], [y, j], [p, i, o, u, u, z, e], [x, n, s, h], [b, t, z, q, u], [e, s, z], [h, u], [h, m], [p, h, e, o, z], [i, m, m, j, q, b, j, r], [x, w, o, x, x, u, v, g, u, h, j], [q, e, d], [t, f, t, o, q, i, h, i, f, k], [t, z, e, h], [p, f, d, g, u], [w, k], [y, j, j, w, e, l], [u, s, k, d, q, f, m, s], [r, q, i, z, d, e], [m, n], [y, h], [u, z], [v, j, x, i, o, j, z], [z, z, n], [c, c], [p, y], [c, n, j, w, c, g], [r, b, n, a, l, k, d, w, x, d, m], [z, b, x, n], [l, x, d, d, s, a, e], [z, c, c, g, v], [k, a], [o, y, a, g, h, r, t], [c, t, l, w, e], [y, h, v, m, i], [l, o, y], [u, g], [q, z, l, c, d], [m, c, r, g, a, i], [p, z, e, a], [t, z, e, x, b, p], [t, w, p], [g, o], [d, f, x, m, t], [q, q, o, j, x], [s, b, o, k, o, v, n, y, o], [k, c, v, z, x, p, h, q, l, y], [h, e, j, q, d], [b, c, q, e, e, b], [r, y, r], [u, e, l, z, u, d, m, s, n, b], [h, l, k], [b, n, e, k], [f, m], [x, x, a, s, m, u, q], [w, c, o, x, u, f, t], [n, g, q, i, m, j], [q, q, i], [l, u], [i, x, q, t, j], [b, z, g, e, x, p], [j, k], [h, p, h, b, e, n, f, p], [w, y, r, c, j], [t, p, g, g, w, f, p, w, m, g, a], [r, t, m, a, c, n], [m, v, w, h, y, q, z], [e, a], [e, g, t, k, m, m, y, g, p, m], [o, n, y], [e, a, p, s, b, j, v, x], [z, j, h, i, h, q, i, t, h], [d, o, g], [j, y, l, w, z, p, a, g, g, c, q, m, z, f], [t, s], [i, s], [n, o, x, h, l, g, s, w, l], [v, a, h, k, r, m, b, p, c, z, f], [e, t, y, z, g], [j, q, p, e, c, c], [k, d, l, w, c, r], [n, z, u, w, k, d, s, p, g, r, n, q, t, d, c, y], [q, j], [o, g], [m, i, b, m, s, v, w, s, n, d, k, w, v], [j, y, u, f, s, c, b], [u, b, q, m], [w, g, s, c, e, b], [n, n, j, k, t, c, m, m, x, i, m], [g, p], [o, u, m, t, d, f, c, f, a, v, p, n, y, h, q, y, u], [k, u, x, y], [x, i, x, e, z, p, j], [s, w, j, m, u, f], [f, j, u, e, j], [r, a, g], [r, x, x], [b, j], [z, j, g, q], [z, z, b, t, i, d, a], [d, j, v, b], [t, x, y, a, q], [h, i, p], [d, v, e, d, d, p, o, x, t, v, k, f, p, h], [n, o], [r, s, t, t, e, i, s, e], [b, g, c, a, o, j, k], [i, m, t, e, v, a, y, q, p, k], [m, j, p, g, h], [c, q, q], [c, a, h, b, k, x, g, q, o], [f, l, j, l, a, z], [c, z, u], [g, t, q, n, c, j, m], [w, g, k, o, f, q, d, r, k, p, s], [u, p, t], [x, k, g, l, g, v], [q, b, g, k, i, o], [e, m, g], [b, g, z, k, t], [q, u, h, o, u, i, d, h, c, o, z, u], [z, w, m, t, x, k, o], [m, x, n, c, o, b, m, h, q, s], [a, z, e, q, s, o, w, r, d], [x, d], [g, f, m, h, h, d, g], [t, x], [l, h, e, b, q, q, k, w, j, e, o, i, k, j, x, t], [q, p, l], [e, p, y], [l, l], [g, b, q, v, g, m, f, p, e, h], [z, h, d, z, d], [h, z, w, x, w, g, d, g, w], [e, b], [b, x, w, w, h, z], [x, q, i], [i, q], [m, c, c, d, q, u, c, p, m, p, o, s, c, m, w], [j, c, v, y, v, g, b, w, v, m, p, s], [i, f, f], [t, r, f, l, d, o], [g, m, g, w, r, i, g], [n, v, y, m], [c, f], [s, q, a, d, j, m, k, m, z, z, l, g, x, y, m, x, j, a], [b, s], [v, s, i, z], [f, p], [s, z, b, w, a, m], [s, u, k], [o, j], [m, c], [b, l], [s, s], [f, p, i, s, e, x, j, t], [n, x, e, i, t, u, n, f], [a, n, y, v], [s, e], [d, f, t, v, z, l, l], [e, z, n, q, z], [b, t, h], [y, l, a, n, v, b], [q, q, w, e], [d, n, g, t, t, l], [s, b, e, r], [k, p, q, h], [p, r], [w, h, z, w], [e, q, j], [r, g, f, n, t], [z, h, j, h, q, c], [z, q, e, h], [h, t], [z, k, u, s, n], [v, s], [e, u, g, o, l, a, n], [i, c, l], [e, o, j, l, n, b, m], [p, r, w, n, n], [x, d, c, z], [p, o], [g, b], [x, y, a, j, q, k, g, e, a, e, a, m, k, d, j], [k, d, j, j, b, w, o, x, m, k], [g, t, x, p, d, p, d, h], [x, e], [q, n, c, a, g, b, d, k, k], [j, f], [w, u], [i, x], [a, n, a, z, w, f, e, y, d, v, h], [b, i, f, n, p, g, p, s, w, t], [m, g, u, g, y], [g, e, c, y, q, o, d], [s, m], [n, m, p], [s, c, c, p, v, c], [m, u, c, u, g, c, m, p, h, t, q, b, u, x, g, m, s, a, i, t, b], [e, j], [m, b, q, z, g], [q, p, s, q, f, p, n, b, u, f], [x, u, n], [z, o], [v, j, m, f, r, j, m], [q, h, a], [a, m, s, n, l, j, q, i, e, u], [e, k, b], [w, v, z], [n, y, x], [g, x, j, g], [v, x, a, e, u, x, r, s, v, w, y, n, z], [x, o, c, o, q, w, h, x, f, e, q, u, i], [w, i, b], [f, h], [z, g, k, h, j, c, l, b, v, q], [i, y, y], [t, t, f, m], [n, h, v, x, g, p, d, y, i, f], [w, c, o, p, n, e, f], [r, q], [t, y, d, s], [x, b, q, e, k], [g, t, t, o, k], [l, h], [u, c, g, y], [y, e, m, l, c, z], [s, z, c, c, g], [i, d, f, q, m, q, w], [z, g, v], [d, o, b], [u, j], [g, y, b, p]],
@@ -201,7 +196,6 @@ test(large) :-
                 [#,#,#,#,_,_,#,_,_,#,#,_,_,_,_,_,_,_,_,_,_,_,_,_,#,_,_,_,_,_,_,_],
                 [#,#,_,_,_,_,#,#,#,#,#,_,_,_,_,_,_,#,_,_,_,_,_,_,_,_,_,_,_,#,_,_]],
     time(puzzle_solution(Puzzle, WordList)),
-    ground(Puzzle),
     write_puzzle(Puzzle).
 
 test(99):-
@@ -268,136 +262,32 @@ test(99):-
     Puzzle= [[_,_,_,_,_,_,_,_,'#',_,_,_,_,_,_,_,_,'#',_,_,_,_,_,_,_],[_,'#','#','#',_,'#','#','#','#',_,'#','#','#',_,'#','#','#','#',_,'#',_,'#','#','#',_],[_,'#',_,'#',_,'#',_,_,_,_,_,_,_,_,_,_,'#','#',_,'#',_,'#','#','#',_],[_,_,_,_,_,_,_,'#','#',_,'#','#','#',_,'#',_,'#',_,_,_,_,_,_,_,_],[_,'#',_,'#',_,'#',_,'#','#',_,'#',_,'#',_,'#',_,'#','#',_,'#',_,'#',_,'#',_],[_,'#',_,'#',_,'#',_,'#',_,_,_,_,_,_,'#',_,'#','#','#','#',_,'#',_,'#',_],[_,'#',_,'#',_,'#',_,'#','#','#','#',_,'#',_,_,_,_,_,_,_,_,'#',_,'#','#'],[_,'#',_,'#',_,_,_,_,_,_,'#',_,'#',_,'#',_,'#',_,'#','#',_,'#',_,'#',_],[_,'#',_,'#','#',_,'#','#',_,'#','#',_,'#','#','#',_,'#',_,'#','#','#','#',_,'#',_],[_,_,_,_,_,_,'#','#',_,_,_,_,_,_,'#',_,'#',_,'#',_,_,_,_,_,_],['#','#','#','#','#',_,'#','#',_,'#','#',_,'#',_,'#',_,'#',_,'#',_,'#','#',_,'#',_],[_,_,_,_,_,_,_,'#',_,'#','#',_,'#',_,'#',_,_,_,_,_,_,_,'#','#',_],[_,'#','#','#','#',_,'#','#',_,'#','#','#','#',_,'#','#','#','#','#',_,'#','#','#','#',_],[_,'#',_,'#','#',_,_,_,_,_,_,_,'#',_,_,_,_,_,_,_,_,'#','#','#',_],[_,'#',_,'#','#','#','#','#',_,'#','#','#','#',_,'#','#','#','#',_,'#','#','#','#','#',_],[_,_,_,_,_,_,'#',_,'#',_,_,_,_,_,_,_,'#',_,_,_,_,_,_,_,_],[_,'#',_,'#','#','#','#',_,'#',_,'#','#','#','#','#','#','#','#',_,'#',_,'#','#','#',_],[_,'#',_,'#',_,_,_,_,_,_,_,_,_,'#','#','#',_,'#',_,'#',_,'#','#','#','#'],[_,'#',_,'#','#','#','#',_,'#',_,'#','#',_,'#','#','#',_,'#',_,'#',_,_,_,_,_],['#','#',_,'#','#','#','#',_,'#','#',_,_,_,_,_,_,_,'#',_,'#',_,'#','#','#',_],[_,_,_,_,_,_,_,_,_,_,'#','#',_,'#','#','#',_,'#','#','#','#',_,'#','#',_],[_,'#',_,'#','#','#','#',_,'#','#',_,'#','#',_,_,_,_,_,_,_,_,_,'#','#',_],[_,'#','#',_,_,_,_,_,_,_,_,_,'#',_,'#','#',_,'#','#','#','#',_,'#','#',_],[_,'#','#','#','#','#','#',_,'#','#',_,'#','#',_,'#','#',_,'#','#','#','#',_,'#','#',_],[_,_,_,_,_,_,_,_,'#','#',_,_,_,_,_,_,_,_,_,'#',_,_,_,_,_]],
 
     time(puzzle_solution(Puzzle, WordList)),
-    ground(Puzzle),
     write_puzzle(Puzzle).
-%-------------------------------------------------------------------------------
-% Main predicate
-% WordGroup groups of Words with same length, for a slot to calculate possible Words
-% LeftSlots left slots, calculate number of possible Words every time
-%-------------------------------------------------------------------------------
-puzzle_solution(Puzzle, Words) :-
-    transpose(Puzzle, Puzzle_transpose),
-    get_slots_in_puzzle(Puzzle, [], S1),
-    get_slots_in_puzzle(Puzzle_transpose, [], S2),
-    append(S1, S2, Slots),
-    group_word(Words, Word_Length_Groups),
-    minimal_solve(Slots, Word_Length_Groups),
-    ground(Puzzle).
-
-minimal_solve([], _).
-minimal_solve(Slots_Left, Word_Length_Groups) :-
-    %maplist(possible,[[_, _, _], [h, _, _]], [3-[[h, a, t], [b, a, g]]], NP).
-    %curry since Word_Length_Groups dont change here
-    %Word_Length_Groups_Repeated = (Word_Length_Groups),
-    maplist(possible(Word_Length_Groups), Slots_Left, NPs),
-    min_list(NPs, NP_Min),
-    nth0(Nth, NPs, NP_Min),
-    !,%choose any one NP_Min is sufficient
-    nth0(Nth, Slots_Left, Slot, Slots_Left_Prime),
-    length(Slot, L),
-    member(L-Group, Word_Length_Groups),
-    match_slot_to_word_group(Slot, Group),
-    select(Slot, Group, Group_Prime),
-    select(L-Group, Word_Length_Groups, L-Group_Prime, Word_Length_Groups_Prime),
-    minimal_solve(Slots_Left_Prime, Word_Length_Groups_Prime).
-%-------------------------------------------------------------------------------
-% Solve the puzzle
-%-------------------------------------------------------------------------------
-% + + -
-possible(Word_Length_Groups, Slot, NP) :-
-    length(Slot, NL),
-    member(NL-Group, Word_Length_Groups),
-    possible_fills(Slot, Group, [], Word_Matches),
-    length(Word_Matches, NP).
-
-possible_fills(_, [], Acc, Acc).
-possible_fills(Slot, [X|Y], Acc, Matches) :-
-    Slot \= X ->
-        possible_fills(Slot, Y, Acc, Matches)
-        ;
-        possible_fills(Slot, Y, [X|Acc], Matches)
-        .
-match_slot_to_word_group(Slot, [Word|R]) :-
-    Slot = Word;
-    match_slot_to_word_group(Slot, R).
-/*
-solve(_, []).
-solve(SlotGroups, [Word|R]) :-
-    %length(R, RN),
-    %write("solve "), write(RN), write(Word), nl,
-    length(Word, N),
-    member(N-Group, SlotGroups),
-    match_group(Group, Word),
-    solve(SlotGroups, R).
-match_group([Slot|R], Word) :-
-    Slot = Word;
-    match_group(R, Word).
-*/
-%-------------------------------------------------------------------------------
-% Sorting words
-%-------------------------------------------------------------------------------
-
-% sort_by_occurence([[h,a,t], [4], [a,a], [b,a,g], [a], [b], [c]], Sorted).
-sort_by_occurence(WordList, Sorted) :-
-    group_word(WordList, SortedGroups),
-    group_to_list(SortedGroups, Sorted).
-
-% not used
-group_slot(SlotList, Groups) :-
-    map_list_to_pairs(length, SlotList, Pairs),
-    keysort(Pairs, SortedPairs),
-    group_pairs_by_key(SortedPairs, Groups).
-
 
 %-------------------------------------------------------------------------------
 % pre-processing of Puzzle and Words
 %-------------------------------------------------------------------------------
 
-% Group Word in Wordlist and make list of groups, ordered in occurence.
-% + -
+% Group Words with same length  and make a list of lenght-group.
+% ++Words -Groups
 % group_word( [[h,a,t], [a,a], [b,a,g], [a], [b], [c]], X).
-% X = [[[a, a]], [[h, a, t], [b, a, g]], [[a], [b], [c]]].
+% X = [1-[[a], [b], [c]], 2-[[a, a]], 3-[[h, a, t], [b, a, g]]].
 group_word(Words, Groups) :-
     map_list_to_pairs(length, Words, Pairs),
+    % making words with same length adjacent for grouping
     keysort(Pairs, SortedPairs),
     group_pairs_by_key(SortedPairs, Groups).
 
-
-/*
-group_word(WordList, GroupList) :-
-    map_list_to_pairs(length, WordList, Pairs),
-    keysort(Pairs, SortedPairs),
-    group_pairs_by_key(SortedPairs, Groups),
-    maplist(key_group_to_occurence_group, Groups, GroupsOccurence),
-    keysort(GroupsOccurence, SortedGroups),
-    pairs_values(SortedGroups, GroupList).
-*/
-
-% + -
-key_group_to_occurence_group(Pair0, Pair1) :-
-    Pair0 = _-V0,
-    length(V0, N),
-    Pair1 = N-V0.
-
-% Put groups in one list
-% + -
-group_to_list([], []).
-group_to_list([Lx|Lxs], List) :-
-    append(Lx, Rest, List),
-    group_to_list(Lxs, Rest).
-
-
-
-
-
-
-
+% For a puzzle, extract all horizontal slots to a list
+% +Puzzle +Accumulator -SlotList
 get_slots_in_puzzle([], Acc, Acc).
 get_slots_in_puzzle([X|Y], Acc, SlotList) :-
     get_slots_in_row(X, [], L),
     append(Acc, L, Acc1),
     get_slots_in_puzzle(Y, Acc1, SlotList).
 
+% For a row, extract all horizontal slots to a list
+% +Puzzle ++Accumulator -SlotList
 get_slots_in_row([], Acc, Acc).
 get_slots_in_row([_], Acc, Acc).
 get_slots_in_row(Row, Accu, SlotList) :-
@@ -420,7 +310,9 @@ get_slots_in_row(Row, Accu, SlotList) :-
         get_slots_in_row(R, Accu, SlotList)
     )
     .
-%supporting partially prefilled Puzzle
+% get the index of first #  in row
+% modified non-trivial to support prefilled squares
+% ++Row +Accumulator -Index
 first_nonvar([], Acc, Acc).
 first_nonvar([X|Y], Acc, Index) :-
     var_or_filled(X) ->
@@ -434,3 +326,60 @@ var_or_filled(X) :-
         true
         ;
         X \= '#' .
+%-------------------------------------------------------------------------------
+% Main predicates
+% Word_Length_Groups Lenght-Group of Words with same length, used for a slot to calculate possible Words
+% LeftSlots left slots, calculate number of possible matches every time to decide which to fill next
+%-------------------------------------------------------------------------------
+
+% +Puzzle ++Words
+puzzle_solution(Puzzle, Words) :-
+    transpose(Puzzle, Puzzle_transpose),
+    get_slots_in_puzzle(Puzzle, [], S1),
+    get_slots_in_puzzle(Puzzle_transpose, [], S2),
+    append(S1, S2, Slots),
+    group_word(Words, Word_Length_Groups),
+    minimal_solve(Slots, Word_Length_Groups),
+    ground(Puzzle).
+% fill slots recursively, find slot with least matches each time
+% Word_Length_Groups is updated for efficiency
+% +Slots_Left ++Word_Length_Groups
+minimal_solve([], _).
+minimal_solve(Slots_Left, Word_Length_Groups) :-
+    % curry since Word_Length_Groups don't change here
+    maplist(possible(Word_Length_Groups), Slots_Left, NPs),
+    min_list(NPs, NP_Min),
+    nth0(Nth, NPs, NP_Min),
+    !,%choose any one NP_Min is sufficient, removing dup solutions
+    nth0(Nth, Slots_Left, Slot, Slots_Left_Prime),
+    length(Slot, L),
+    member(L-Group, Word_Length_Groups),
+    match_slot_to_word_group(Slot, Group),
+    % removing slot and corresponding word
+    select(Slot, Group, Group_Prime),
+    select(L-Group, Word_Length_Groups, L-Group_Prime, Word_Length_Groups_Prime),
+    minimal_solve(Slots_Left_Prime, Word_Length_Groups_Prime).
+%-------------------------------------------------------------------------------
+% Find possible matches on the run
+%-------------------------------------------------------------------------------
+% calculate how many words can match a slot, Word_Length_Groups can have only left words
+% ++Word_Length_Groups +Slot -NP
+possible(Word_Length_Groups, Slot, NP) :-
+    length(Slot, NL),
+    member(NL-Group, Word_Length_Groups),
+    possible_fills(Slot, Group, [], Word_Matches),
+    length(Word_Matches, NP).
+% get list of possible matches for a slot
+% +Slot ++Words ++Acc -Matches
+possible_fills(_, [], Acc, Acc).
+possible_fills(Slot, [X|Y], Acc, Matches) :-
+    Slot \= X ->
+        possible_fills(Slot, Y, Acc, Matches)
+        ;
+        possible_fills(Slot, Y, [X|Acc], Matches)
+        .
+% exhaustively try to unify slot to all possible words
+% +Slot ++Words
+match_slot_to_word_group(Slot, [Word|R]) :-
+    Slot = Word;
+    match_slot_to_word_group(Slot, R).
